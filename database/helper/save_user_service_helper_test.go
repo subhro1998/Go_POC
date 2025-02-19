@@ -3,8 +3,10 @@ package helper
 import (
 	"Go_Assignment/database/util"
 	"Go_Assignment/dto"
+	"database/sql"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
@@ -16,10 +18,11 @@ func TestSaveUserDetails_Success(t *testing.T) {
 
 	// Insert query
 	mock.ExpectBegin()
-	expectedSaveUserQuery := "INSERT into `users` VALUES (`created_at`,`updated_at`,`deleted_at`,`user_name`,`user_email`,`user_role`,`user_password`,`id`) VALUES (?,?,?,?,?,?,?,?)"
-	expectedSavePrivilegeQuery := "INSERT into `user_privileges` VALUES (`created_at`,`updated_at`,`deleted_at` )"
-	mock.ExpectExec(expectedSaveUserQuery).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), "", "XYZ", "xyz@email.com", "Admin", "XYZ", 1).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectExec(expectedSavePrivilegeQuery).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), "").WillReturnResult(sqlmock.NewResult(1, 1))
+	expectedSaveUserQuery := "INSERT INTO `users` (`created_at`,`updated_at`,`deleted_at`,`user_name`,`user_email`,`user_role`,`user_password`,`id`) VALUES (?,?,?,?,?,?,?,?)"
+	expectedSavePrivilegeQuery := "INSERT INTO `user_privileges` (`created_at`,`updated_at`,`deleted_at`,`privilege_type`,`user_id`,`id`) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE `user_id`=VALUES(`user_id`)"
+
+	mock.ExpectExec(expectedSaveUserQuery).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sql.NullTime{Time: time.Now(), Valid: false}, "XYZ", "xyz@email.com", "Admin", "admin_pass", 1).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(expectedSavePrivilegeQuery).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sql.NullTime{Time: time.Now(), Valid: false}, "All", 1, 2).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
 	// User request
@@ -32,7 +35,7 @@ func TestSaveUserDetails_Success(t *testing.T) {
 		UserId:     1,
 		Name:       "XYZ",
 		Email:      "xyz@email.com",
-		Password:   "XYZ",
+		Password:   "admin_pass",
 		Role:       "Admin",
 		Privileges: []dto.UserPrivilegeResponse{userPrivilege},
 	}
