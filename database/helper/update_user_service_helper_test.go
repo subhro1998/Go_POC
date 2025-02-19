@@ -69,7 +69,7 @@ func TestCheckForUpdateInPrivileges_UpdateRequired(t *testing.T) {
 		Model:      gorm.Model{ID: 1},
 		Username:   "UserName",
 		UserMailId: "mail@id.com",
-		UserRole:   "User",
+		UserRole:   "Admin",
 		Password:   "user_password",
 		Privileges: []model.UserPrivilege{
 			{
@@ -80,6 +80,89 @@ func TestCheckForUpdateInPrivileges_UpdateRequired(t *testing.T) {
 			{
 				Model:         gorm.Model{ID: 3},
 				PrivilegeType: "Add",
+				UserID:        1,
+			},
+		},
+	}
+
+	updateUserRequest := model.User{
+		Model:      gorm.Model{ID: 1},
+		Username:   "UserName",
+		UserMailId: "mail@id.com",
+		UserRole:   "Admin",
+		Password:   "user_password",
+		Privileges: []model.UserPrivilege{
+			{
+				Model:         gorm.Model{ID: 2},
+				PrivilegeType: "View",
+				UserID:        1,
+			},
+			{
+				Model:         gorm.Model{ID: 3},
+				PrivilegeType: "Add",
+				UserID:        1,
+			},
+			{
+				Model:         gorm.Model{ID: 4},
+				PrivilegeType: "Delete",
+				UserID:        1,
+			},
+		},
+	}
+
+	privileges, err := checkForUpdateInPrivileges(updateUserRequest, existingUser)
+	assert.NotNil(t, privileges)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(privileges))
+}
+
+func TestCheckForUpdateInPrivileges_NoUpdate(t *testing.T) {
+	existingUser := model.User{
+		Model:      gorm.Model{ID: 1},
+		Username:   "UserName",
+		UserMailId: "mail@id.com",
+		UserRole:   "Admin",
+		Password:   "user_password",
+		Privileges: []model.UserPrivilege{
+			{
+				Model:         gorm.Model{ID: 2},
+				PrivilegeType: "View",
+				UserID:        1,
+			},
+		},
+	}
+
+	updateUserRequest := model.User{
+		Model:      gorm.Model{ID: 1},
+		Username:   "UserName",
+		UserMailId: "mail@id.com",
+		UserRole:   "Admin",
+		Password:   "user_password",
+		Privileges: []model.UserPrivilege{
+			{
+				Model:         gorm.Model{ID: 2},
+				PrivilegeType: "View",
+				UserID:        1,
+			},
+		},
+	}
+
+	privileges, err := checkForUpdateInPrivileges(updateUserRequest, existingUser)
+	assert.Nil(t, err)
+	assert.Nil(t, privileges) // No update required scenario
+}
+
+func TestCheckForUpdateInPrivileges_NonAdminUser_Failure(t *testing.T) {
+	existingUser := model.User{
+		Model:      gorm.Model{ID: 1},
+		Username:   "UserName",
+		UserMailId: "mail@id.com",
+		UserRole:   "User",
+		Password:   "user_password",
+		Privileges: []model.UserPrivilege{
+			{
+				Model:         gorm.Model{ID: 2},
+				PrivilegeType: "View",
 				UserID:        1,
 			},
 		},
@@ -110,42 +193,8 @@ func TestCheckForUpdateInPrivileges_UpdateRequired(t *testing.T) {
 		},
 	}
 
-	privileges := checkForUpdateInPrivileges(updateUserRequest, existingUser)
-	assert.NotNil(t, privileges)
-	assert.Equal(t, 3, len(privileges))
-}
-
-func TestCheckForUpdateInPrivileges_NoUpdate(t *testing.T) {
-	existingUser := model.User{
-		Model:      gorm.Model{ID: 1},
-		Username:   "UserName",
-		UserMailId: "mail@id.com",
-		UserRole:   "User",
-		Password:   "user_password",
-		Privileges: []model.UserPrivilege{
-			{
-				Model:         gorm.Model{ID: 2},
-				PrivilegeType: "View",
-				UserID:        1,
-			},
-		},
-	}
-
-	updateUserRequest := model.User{
-		Model:      gorm.Model{ID: 1},
-		Username:   "UserName",
-		UserMailId: "mail@id.com",
-		UserRole:   "User",
-		Password:   "user_password",
-		Privileges: []model.UserPrivilege{
-			{
-				Model:         gorm.Model{ID: 2},
-				PrivilegeType: "View",
-				UserID:        1,
-			},
-		},
-	}
-
-	privileges := checkForUpdateInPrivileges(updateUserRequest, existingUser)
+	privileges, err := checkForUpdateInPrivileges(updateUserRequest, existingUser)
+	assert.NotNil(t, err)
+	assert.Equal(t, "not an admin user, not allowed to update role", err.Error())
 	assert.Nil(t, privileges) // No update required scenario
 }

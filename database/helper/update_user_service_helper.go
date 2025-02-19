@@ -5,8 +5,10 @@ import (
 	"Go_Assignment/dto"
 	"Go_Assignment/loggerutil"
 	"Go_Assignment/model"
+	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -37,7 +39,11 @@ func UpdateUserIfExists(db *gorm.DB, userDetailsToUpdate model.User) (int, strin
 
 	// convert the Request to Domain entity and check for field Update and then Update those fields
 	existingUser := util.ToDomainDto(dto.UserRequest(existingUsers[0]))
-	updatedPrivileges := checkForUpdateInPrivileges(userDetailsToUpdate, existingUser)
+	updatedPrivileges, updateErr := checkForUpdateInPrivileges(userDetailsToUpdate, existingUser)
+	if updateErr != nil {
+		return http.StatusNotAcceptable, updateErr.Error()
+	}
+
 	if updatedPrivileges != nil {
 		logMsg = loggerutil.LogMessage{Level: "Info", Message: "Going to replace current Privileges to new Privileges"}
 		logMessages = append(logMessages, logMsg)
@@ -72,7 +78,7 @@ func UpdateUserIfExists(db *gorm.DB, userDetailsToUpdate model.User) (int, strin
 	return statusCode, message
 }
 
-func checkForUpdateInPrivileges(userDetailsToUpdate model.User, existingUserDetails model.User) []model.UserPrivilege {
+func checkForUpdateInPrivileges(userDetailsToUpdate model.User, existingUserDetails model.User) ([]model.UserPrivilege, error) {
 	// check if there is any update in Privileges
 	logMessages := []loggerutil.LogMessage{}
 	logMsg := loggerutil.LogMessage{Level: "Info", Message: "Checking for update in provided user details"}
@@ -102,8 +108,12 @@ func checkForUpdateInPrivileges(userDetailsToUpdate model.User, existingUserDeta
 	go loggerutil.LogProcessor()
 
 	if updateRequired {
-		return userDetailsToUpdate.Privileges
+		if strings.EqualFold(existingUserDetails.UserRole, "admin") {
+			return userDetailsToUpdate.Privileges, nil
+		} else {
+			return nil, errors.New("not an admin user, not allowed to update role")
+		}
 	} else {
-		return nil
+		return nil, nil
 	}
 }
